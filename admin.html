@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADMIN - Historique ATTT</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f4f7f6; padding: 20px; color: #333; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; color: #7f8c8d; text-transform: uppercase; font-size: 12px; }
+        .btn-img { background: #3498db; color: white; padding: 8px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: bold; }
+        .status-valide { color: #27ae60; font-weight: bold; }
+        .search-bar { width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .no-data { text-align: center; padding: 40px; color: #95a5a6; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📋 Historique des Contrôles <button onclick="exporterDonnees()" style="font-size: 12px; cursor: pointer;">Exporter Excel</button></h1>
+    
+    <input type="text" id="adminSearch" class="search-bar" placeholder="Rechercher un VIN ou une date..." oninput="chargerHistorique()">
+
+    <table id="adminTable">
+        <thead>
+            <tr>
+                <th>Date / Heure</th>
+                <th>Numéro VIN</th>
+                <th>Statut</th>
+                <th>Preuve Photo</th>
+            </tr>
+        </thead>
+        <tbody id="adminBody">
+            </tbody>
+    </table>
+</div>
+
+<script>
+function chargerHistorique() {
+    const list = document.getElementById('adminBody');
+    const filter = document.getElementById('adminSearch').value.toUpperCase();
+    
+    // Récupération des données partagées avec l'index
+    let history = JSON.parse(localStorage.getItem('attt_history') || '[]');
+    
+    if (history.length === 0) {
+        list.innerHTML = '<tr><td colspan="4" class="no-data">Aucun contrôle enregistré pour le moment.</td></tr>';
+        return;
+    }
+
+    list.innerHTML = history
+        .filter(item => item.vin.includes(filter) || item.date.includes(filter))
+        .map(item => `
+        <tr>
+            <td>${item.date}</td>
+            <td style="font-family: monospace; font-weight: bold; font-size: 16px;">${item.vin}</td>
+            <td class="status-valide">VÉRIFIÉ</td>
+            <td>
+                ${item.url ? `<a href="${item.url}" target="_blank" class="btn-img">👁️ VOIR PHOTO HD</a>` : '<span style="color:#ccc">Pas de photo</span>'}
+            </td>
+        </tr>
+    `).join('');
+}
+
+function exporterDonnees() {
+    let history = localStorage.getItem('attt_history');
+    let blob = new Blob([history], {type: "application/json"});
+    let url = URL.createObjectURL(blob);
+    let a = document.createElement('a');
+    a.href = url;
+    a.download = "export_attt_" + new Date().toLocaleDateString() + ".json";
+    a.click();
+}
+
+// Chargement automatique au démarrage
+window.onload = chargerHistorique;
+</script>
+
+</body>
+</html>
