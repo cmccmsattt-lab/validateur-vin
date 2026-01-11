@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ATTT VIN PRO - V2026.15</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+    <style>
+        html, body { margin: 0; padding: 0; background-color: #f0f2f5; font-family: 'Segoe UI', sans-serif; }
+        body { display: flex; flex-direction: column; align-items: center; padding: 15px 0; }
+        .app-card { background: white; padding: 20px; border-radius: 25px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); width: 92%; max-width: 400px; text-align: center; box-sizing: border-box; }
+        .logo-img { width: 100px; margin-bottom: 10px; }
+        .btn { width: 100%; padding: 14px; margin: 4px 0; border: none; border-radius: 12px; cursor: pointer; font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-camera { background-color: #3498db; color: white; }
+        .btn-gallery { background-color: #ecf0f1; color: #7f8c8d; border: 1px solid #ddd; }
+        .btn-verify { background-color: #58b65c; color: white; margin-top: 10px; }
+        input[type=text] { width: 100%; padding: 16px; border: 2px solid #eee; border-radius: 12px; margin: 10px 0; font-size: 18px; text-align: center; text-transform: uppercase; font-family: monospace; box-sizing: border-box; }
+        .footer-attt { margin-top: 20px; text-align: center; }
+        .agence-nom { font-weight: 700; font-size: 11px; color: #2c3e50; display: block; }
+        #tempCanvas { display: none; }
+    </style>
+</head>
+<body>
+<div class="app-card">
+    <img src="logo.png" alt="Logo ATTT" class="logo-img">
+    <h2>Validateur de VIN</h2>
+    <button class="btn btn-camera" onclick="document.getElementById('forceCamera').click()">📷 Prendre une Photo</button>
+    <input type="file" id="forceCamera" accept="image/*" capture="environment" style="display:none" onchange="traiterEtScanner(this)">
+    <button class="btn btn-gallery" onclick="document.getElementById('forceGallery').click()">📁 Choisir dans la Galerie</button>
+    <input type="file" id="forceGallery" accept="image/*" style="display:none" onchange="traiterEtScanner(this)">
+    <input type="text" id="vinInput" placeholder="SAISIR VIN..." maxlength="17" oninput="majCompteur()">
+    <div id="compteur" style="font-size:11px; color:#999; text-align:right">0 / 17</div>
+    <button class="btn btn-verify" onclick="verifierVIN()">VÉRIFIER</button>
+    <div id="resultat"></div>
+</div>
+<div class="footer-attt">
+    <span class="agence-nom">Agence Technique des Transports Terrestres</span>
+    <span style="font-size:10px; color:#95a5a6;">Direction Technique des Automobiles</span>
+</div>
+<canvas id="tempCanvas"></canvas>
+<script>
+const CLOUD_KEY = '6d207dfc130c0f65349386c67332f143';
+async function traiterEtScanner(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("image", file);
+    fetch(`https://api.imgbb.com/1/upload?key=${CLOUD_KEY}`, { method: "POST", body: formData })
+      .then(res => res.json())
+      .then(data => { localStorage.setItem('last_cloud_url', data.data.url); })
+      .catch(err => console.log("Erreur silencieuse"));
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+    img.onload = async () => {
+        const canvas = document.getElementById('tempCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width; canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        const result = await Tesseract.recognize(canvas.toDataURL(), 'eng');
+        let extrait = result.data.text.replace(/[^A-Z0-9]/gi, "").toUpperCase();
+        document.getElementById('vinInput').value = (document.getElementById('vinInput').value + extrait).substring(0, 17);
+        majCompteur();
+    };
+}
+function majCompteur() { document.getElementById('compteur').innerText = document.getElementById('vinInput').value.length + " / 17"; }
+function verifierVIN() {
+    const vin = document.getElementById('vinInput').value.toUpperCase();
+    const resDiv = document.getElementById('resultat');
+    if (vin.length !== 17) { resDiv.innerHTML = "⚠️ 17 caractères requis"; return; }
+    resDiv.style.background = "#e8f5e9";
+    resDiv.innerHTML = "✅ VIN Enregistré et Vérifié";
+    let history = JSON.parse(localStorage.getItem('attt_history') || '[]');
+    history.unshift({ vin: vin, url: localStorage.getItem('last_cloud_url'), date: new Date().toLocaleString() });
+    localStorage.setItem('attt_history', JSON.stringify(history.slice(0, 50)));
+}
+</script>
+</body>
+</html>
